@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Watch & Earn</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Telegram WebApp -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<style>
+body {
+  margin: 0;
+  background: #000;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+.container { padding: 15px; }
+iframe {
+  width: 100%;
+  max-width: 420px;
+  height: 240px;
+  border: none;
+  border-radius: 10px;
+}
+.progress {
+  margin-top: 10px;
+  height: 8px;
+  background: #222;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.bar {
+  height: 100%;
+  width: 0%;
+  background: #22c55e;
+  transition: width 1s linear;
+}
+.status { margin-top: 10px; }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h3>🎬 Watch & Earn</h3>
+  <iframe id="player" allowfullscreen></iframe>
+
+  <div class="progress">
+    <div class="bar" id="bar"></div>
+  </div>
+
+  <div class="status" id="status">Loading video...</div>
+</div>
+
+<script>
+const API_URL = "https://view4server.onrender.com"; // ✅ your Render API
+
+const tg = window.Telegram.WebApp;
+const user = tg.initDataUnsafe?.user;
+
+let sessionId = null;
+let watchTime = 30;
+let seconds = 0;
+let timer = null;
+
+/* ---------- Convert YouTube URL → Embed ---------- */
+function toEmbed(url) {
+  if (!url) return "";
+
+  if (url.includes("watch?v=")) {
+    return url.replace("watch?v=", "embed/");
+  }
+
+  if (url.includes("/shorts/")) {
+    const id = url.split("/shorts/")[1].split("?")[0];
+    return "https://www.youtube.com/embed/" + id;
+  }
+
+  return url;
+}
+
+/* ---------- Load Video ---------- */
+async function loadVideo() {
+  if (!user) {
+    status.innerText = "⚠ Telegram user not detected";
+    return;
+  }
+
+  try {
+    const res = await fetch(API_URL + "/get-video", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ user_id: user.id })
+    });
+
+    const data = await res.json();
+    console.log("API response:", data);
+
+    if (data.status === "no_videos") {
+      status.innerText = "❌ No videos available. Try later.";
+      return;
+    }
+
+    sessionId = data.session_id;
+    const embedUrl = toEmbed(data.url);
+
+    document.getElementById("player").src = embedUrl;
+    status.innerText = "Watch 30 seconds to earn points";
+
+    startTimer();
+
+  } catch (e) {
+    console.error(e);
+    status.innerText = "⚠ Failed to load video";
+  }
+}
+
+/* ---------- Timer ---------- */
+function startTimer() {
+  timer = setInterval(() => {
+    seconds++;
+    let percent = (seconds / watchTime) * 100;
+    bar.style.width = percent + "%";
+
+    if (seconds >= watchTime) {
+      clearInterval(timer);
+      completeWatch();
+    }
+  }, 1000);
+}
+
+/* ---------- Complete Watch ---------- */
+async function completeWatch() {
+  status.innerText = "Submitting...";
+
+  try {
+    const res = await fetch(API_URL + "/complete-watch", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ session_id: sessionId })
+    });
+
+    const data = await res.json();
+    console.log("Complete response:", data);
+
+    if (data.status === "rewarded") {
+      status.innerText = "✅ Points added!";
+      tg.HapticFeedback.notificationOccurred("success");
+    } else if (data.status === "banned") {
+      status.innerText = "🚫 You are banned";
+    } else {
+      status.innerText = "⚠ Error completing task";
+    }
+
+  } catch {
+    status.innerText = "⚠ Network error";
+  }
+}
+
+/* ---------- Anti-Cheat: stop if hidden ---------- */
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && timer) {
+    clearInterval(timer);
+    status.innerText = "⚠ Keep the video open to earn";
+  }
+});
+
+/* ---------- Start ---------- */
+loadVideo();
+</script>
+</body>
+</html>
