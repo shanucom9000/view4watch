@@ -4,37 +4,29 @@
 <meta charset="UTF-8">
 <title>Watch & Earn</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<style>
-body { background:#000; color:#fff; text-align:center; font-family:Arial; }
-iframe { width:100%; max-width:420px; height:240px; border-radius:10px; }
-.progress { height:8px; background:#222; margin-top:10px; }
-.bar { height:8px; width:0; background:#22c55e; }
-</style>
 </head>
-<body>
+<body style="background:black;color:white;text-align:center">
 
 <h3>🎬 Watch & Earn</h3>
-<iframe id="player" allowfullscreen></iframe>
-<div class="progress"><div class="bar" id="bar"></div></div>
-<p id="status">Loading video...</p>
+<iframe id="player" width="420" height="240" allowfullscreen></iframe>
+<p id="status">Loading...</p>
 
 <script>
 const API_URL = "https://view4server.onrender.com";
-
 const tg = window.Telegram.WebApp;
 const user = tg.initDataUnsafe?.user;
 
-let sessionId = null;
-let seconds = 0;
+let sessionId;
 
 async function loadVideo() {
   const res = await fetch(API_URL + "/get-video", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ user_id: user.id })
+    body: JSON.stringify({ user_id: user?.id || "test_user" })
   });
 
   const data = await res.json();
+  console.log("API:", data);
 
   if (data.status === "no_videos") {
     status.innerText = "No videos available";
@@ -43,32 +35,7 @@ async function loadVideo() {
 
   sessionId = data.session_id;
   player.src = data.url + "?autoplay=1&mute=1";
-
-  status.innerText = "Watch 30 seconds to earn";
-  startTimer();
-}
-
-function startTimer() {
-  const timer = setInterval(() => {
-    seconds++;
-    bar.style.width = (seconds/30)*100 + "%";
-
-    if (seconds >= 30) {
-      clearInterval(timer);
-      completeWatch();
-    }
-  }, 1000);
-}
-
-async function completeWatch() {
-  status.innerText = "Submitting...";
-  const res = await fetch(API_URL + "/complete-watch", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ session_id: sessionId })
-  });
-  const data = await res.json();
-  status.innerText = data.status === "rewarded" ? "✅ Points added!" : "Error";
+  status.innerText = "Watching...";
 }
 
 loadVideo();
