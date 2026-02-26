@@ -1,10 +1,5 @@
 <!DOCTYPE html>
 <html>
-<head>
-<meta charset="UTF-8">
-<title>Watch & Earn</title>
-</head>
-
 <body style="background:black;color:white;text-align:center;font-family:sans-serif">
 
 <h2>🎬 Watch & Earn</h2>
@@ -21,21 +16,27 @@ const player = document.getElementById("player");
 const statusEl = document.getElementById("status");
 const timerEl = document.getElementById("timer");
 
-let countdown = REQUIRED_TIME;
+const session_id = Math.random().toString(36).substring(2);
 
-// ================= VERIFY TOKEN =================
+let watchTime = 0;
+let active = true;
+
 async function verifyToken() {
   const res = await fetch(API + "/verify-token", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ token })
+    body: JSON.stringify({ token, session_id })
   });
 
   const data = await res.json();
-  console.log(data);
+
+  if (data.status === "multi_tab") {
+    statusEl.innerText = "❌ Already open in another tab";
+    return;
+  }
 
   if (data.status !== "ok") {
-    statusEl.innerText = "❌ Token expired or invalid";
+    statusEl.innerText = "❌ Invalid or expired";
     return;
   }
 
@@ -44,44 +45,50 @@ async function verifyToken() {
   startTimer();
 }
 
-// ================= TIMER =================
 function startTimer() {
-  timerEl.innerText = "⏳ " + countdown + " sec";
+  setInterval(() => {
+    if (!active) return;
 
-  const interval = setInterval(() => {
-    countdown--;
-    timerEl.innerText = "⏳ " + countdown + " sec";
+    watchTime++;
+    timerEl.innerText = "⏳ " + watchTime + " / " + REQUIRED_TIME;
 
-    if (countdown <= 0) {
-      clearInterval(interval);
+    if (watchTime >= REQUIRED_TIME) {
       completeWatch();
     }
   }, 1000);
 }
 
-// ================= COMPLETE WATCH =================
+document.addEventListener("visibilitychange", () => {
+  active = !document.hidden;
+});
+
+window.addEventListener("blur", () => active = false);
+window.addEventListener("focus", () => active = true);
+
 async function completeWatch() {
   statusEl.innerText = "🎉 Rewarding...";
 
   const res = await fetch(API + "/complete-watch", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ token })
+    body: JSON.stringify({
+      token,
+      watch_time: watchTime
+    })
   });
 
   const data = await res.json();
-  console.log(data);
 
   if (data.status === "rewarded") {
     statusEl.innerText = "✅ Reward added!";
-    timerEl.innerText = "";
+  } else if (data.status === "too_fast") {
+    statusEl.innerText = "❌ Fast-forward detected";
   } else {
-    statusEl.innerText = "⚠️ Could not reward";
+    statusEl.innerText = "⚠️ Error";
   }
 }
 
 verifyToken();
 </script>
-
 </body>
 </html>
