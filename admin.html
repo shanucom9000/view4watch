@@ -2,90 +2,242 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Admin Panel</title>
+<title>View4View Admin Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
-body{font-family:Arial;background:#0f172a;color:white;padding:20px}
-.card{background:#1e293b;padding:20px;margin:10px 0;border-radius:10px}
-button{padding:8px 12px;margin:5px;background:#3b82f6;border:none;color:white;border-radius:6px}
-input,textarea{width:100%;padding:10px;margin:5px 0;border-radius:6px;border:none}
+body {
+  font-family: Arial;
+  background:#0f172a;
+  color:white;
+  padding:20px;
+}
+.card {
+  background:#1e293b;
+  padding:20px;
+  margin:15px 0;
+  border-radius:10px;
+}
+button {
+  padding:8px 14px;
+  margin:5px;
+  border:none;
+  border-radius:6px;
+  background:#3b82f6;
+  color:white;
+  cursor:pointer;
+}
+input, textarea {
+  width:100%;
+  padding:10px;
+  margin:6px 0;
+  border-radius:6px;
+  border:none;
+}
+.hidden { display:none; }
 </style>
 </head>
 <body>
 
-<div id="login" class="card">
-<h2>Admin Login</h2>
-<input id="key" placeholder="API Key">
-<button onclick="login()">Login</button>
-<p id="msg"></p>
+<!-- LOGIN -->
+<div id="loginBox" class="card">
+  <h2>🔐 Admin Login</h2>
+  <input type="password" id="apiKey" placeholder="Enter Admin API Key">
+  <button onclick="login()">Login</button>
+  <p id="loginMsg"></p>
 </div>
 
-<div id="panel" style="display:none">
+<!-- DASHBOARD -->
+<div id="dashboard" class="hidden">
+
+<h1>🚀 Admin Dashboard</h1>
 
 <div class="card">
-<button onclick="loadUsers()">Users</button>
-<button onclick="broadcast()">Broadcast</button>
-<button onclick="revenue()">Revenue</button>
+  <button onclick="loadStats()">📊 Stats</button>
+  <button onclick="loadUsers()">👥 Users</button>
+  <button onclick="loadRevenue()">💰 Revenue</button>
+  <button onclick="loadFraud()">🚨 Fraud</button>
+  <button onclick="loadLeaderboard()">🏆 Leaderboard</button>
+  <button onclick="exportUsers()">🧾 Export Users</button>
 </div>
 
 <div id="content"></div>
 
+<!-- BROADCAST -->
 <div class="card">
-<h3>Private Message</h3>
-<input id="uid" placeholder="User ID">
-<textarea id="pmsg"></textarea>
-<button onclick="privateMsg()">Send</button>
+<h3>📢 Broadcast Message</h3>
+<textarea id="broadcastMsg" placeholder="Enter message"></textarea>
+<button onclick="broadcast()">Send Broadcast</button>
+</div>
+
+<!-- PRIVATE MESSAGE -->
+<div class="card">
+<h3>✉️ Private Message</h3>
+<input id="privateUid" placeholder="User ID">
+<textarea id="privateMsg" placeholder="Message"></textarea>
+<button onclick="sendPrivate()">Send Message</button>
+</div>
+
+<!-- CREATE GIFTCARD -->
+<div class="card">
+<h3>🎁 Create Gift Card</h3>
+<input id="giftPoints" placeholder="Points">
+<input id="giftUsers" placeholder="Max Users">
+<button onclick="createGift()">Generate Code</button>
+<p id="giftResult"></p>
 </div>
 
 </div>
 
 <script>
-const API="https://view4server.onrender.com";
-let KEY="";
 
+const API = "https://view4server.onrender.com"; // 🔁 Change if needed
+let ADMIN_KEY = "";
+
+// ================= LOGIN =================
 function login(){
- KEY=document.getElementById("key").value;
- fetch(API+"/admin/stats",{headers:{"X-API-KEY":KEY}})
- .then(r=>{if(!r.ok)throw 1; return r.json()})
- .then(()=>{login.style.display="none"; panel.style.display="block"})
- .catch(()=>msg.innerText="Invalid Key");
+  ADMIN_KEY = document.getElementById("apiKey").value;
+
+  fetch(API + "/admin/stats", {
+    headers: {"X-API-KEY": ADMIN_KEY}
+  })
+  .then(res => {
+    if(!res.ok) throw new Error();
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("dashboard").classList.remove("hidden");
+  })
+  .catch(() => {
+    document.getElementById("loginMsg").innerText = "❌ Invalid API Key";
+  });
 }
 
+// ================= STATS =================
+function loadStats(){
+  fetch(API + "/admin/stats", { headers: {"X-API-KEY": ADMIN_KEY}})
+  .then(res=>res.json())
+  .then(data=>{
+    content.innerHTML = `
+      <div class="card">
+      <h3>📊 Platform Stats</h3>
+      Users: ${data.users}<br>
+      Orders: ${data.orders}<br>
+      Active Orders: ${data.active_orders}
+      </div>`;
+  });
+}
+
+// ================= USERS =================
 function loadUsers(){
- fetch(API+"/admin/users",{headers:{"X-API-KEY":KEY}})
- .then(r=>r.json())
- .then(data=>{
-   let html="<div class='card'><h3>Total Users: "+Object.keys(data).length+"</h3>";
-   for(let id in data){
-     html+=`<p>${id} — ${data[id].balance||0} pts</p>`;
-   }
-   html+="</div>";
-   content.innerHTML=html;
- });
+  fetch(API + "/admin/users", { headers: {"X-API-KEY": ADMIN_KEY}})
+  .then(res=>res.json())
+  .then(users=>{
+    let html = "<div class='card'><h3>Total Users: "+Object.keys(users).length+"</h3>";
+    for(let uid in users){
+      html += `<p>${uid} — Balance: ${users[uid].balance || 0}</p>`;
+    }
+    html += "</div>";
+    content.innerHTML = html;
+  });
 }
 
+// ================= REVENUE =================
+function loadRevenue(){
+  fetch(API + "/admin/revenue", { headers: {"X-API-KEY": ADMIN_KEY}})
+  .then(res=>res.json())
+  .then(data=>{
+    content.innerHTML = `
+      <div class="card">
+      <h3>💰 Revenue Analytics</h3>
+      Total Views: ${data.total_views}<br>
+      Points Spent: ${data.points_spent}
+      </div>`;
+  });
+}
+
+// ================= FRAUD =================
+function loadFraud(){
+  fetch(API + "/admin/fraud", { headers: {"X-API-KEY": ADMIN_KEY}})
+  .then(res=>res.json())
+  .then(data=>{
+    let html="<div class='card'><h3>🚨 Fraud Alerts</h3>";
+    for(let uid in data){
+      html += `<p>${uid} → Score: ${data[uid].score}</p>`;
+    }
+    html+="</div>";
+    content.innerHTML=html;
+  });
+}
+
+// ================= LEADERBOARD =================
+function loadLeaderboard(){
+  fetch(API + "/admin/leaderboard")
+  .then(res=>res.json())
+  .then(data=>{
+    let html="<div class='card'><h3>🏆 Top Referrals</h3>";
+    data.forEach(u=>{
+      html += `<p>${u[0]} → Referrals: ${u[1].referrals || 0}</p>`;
+    });
+    html+="</div>";
+    content.innerHTML=html;
+  });
+}
+
+// ================= EXPORT USERS =================
+function exportUsers(){
+  fetch(API + "/admin/export/users", { headers: {"X-API-KEY": ADMIN_KEY}})
+  .then(res=>res.json())
+  .then(data=>{
+    const blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "users.json";
+    a.click();
+  });
+}
+
+// ================= BROADCAST =================
 function broadcast(){
- let m=prompt("Message:");
- fetch(API+"/admin/broadcast",{
-  method:"POST",
-  headers:{"Content-Type":"application/json","X-API-KEY":KEY},
-  body:JSON.stringify({message:m})
- });
+  fetch(API + "/admin/broadcast", {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "X-API-KEY": ADMIN_KEY
+    },
+    body:JSON.stringify({message:broadcastMsg.value})
+  }).then(()=>alert("Broadcast Sent"));
 }
 
-function privateMsg(){
- fetch(API+"/admin/message/"+uid.value,{
-  method:"POST",
-  headers:{"Content-Type":"application/json","X-API-KEY":KEY},
-  body:JSON.stringify({message:pmsg.value})
- });
- alert("Sent");
+// ================= PRIVATE MESSAGE =================
+function sendPrivate(){
+  fetch(API + "/admin/message/" + privateUid.value, {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "X-API-KEY": ADMIN_KEY
+    },
+    body:JSON.stringify({message:privateMsg.value})
+  }).then(()=>alert("Message Sent"));
 }
 
-function revenue(){
- fetch(API+"/admin/revenue",{headers:{"X-API-KEY":KEY}})
- .then(r=>r.json())
- .then(d=>content.innerHTML=`<div class='card'>Views: ${d.total_views}<br>Points: ${d.points_spent}</div>`);
+// ================= CREATE GIFTCARD =================
+function createGift(){
+  fetch(API + "/admin/create-giftcard", {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "X-API-KEY": ADMIN_KEY
+    },
+    body:JSON.stringify({
+      points: giftPoints.value,
+      max_users: giftUsers.value
+    })
+  })
+  .then(res=>res.json())
+  .then(data=>{
+    giftResult.innerText = "Gift Code: " + data.code;
+  });
 }
+
 </script>
 
 </body>
