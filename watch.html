@@ -1,81 +1,59 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Watch & Earn</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<meta charset="UTF-8">
+<title>Watch & Earn</title>
 </head>
 
 <body style="background:black;color:white;text-align:center;font-family:sans-serif">
 
 <h2>🎬 Watch & Earn</h2>
-
 <iframe id="player" width="420" height="240" allowfullscreen></iframe>
-
 <p id="status">🔄 Verifying...</p>
 <p id="timer"></p>
 
 <script>
 const API = "https://view4server.onrender.com";
-const REQUIRED_TIME = 30; // seconds
+const REQUIRED_TIME = 30;
 
 const token = new URLSearchParams(location.search).get("token");
-
+const player = document.getElementById("player");
 const statusEl = document.getElementById("status");
 const timerEl = document.getElementById("timer");
-const player = document.getElementById("player");
 
 let countdown = REQUIRED_TIME;
-let timerInterval = null;
 
 // ================= VERIFY TOKEN =================
 async function verifyToken() {
-  if (!token) {
-    statusEl.innerText = "❌ Invalid link";
+  const res = await fetch(API + "/verify-token", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ token })
+  });
+
+  const data = await res.json();
+  console.log(data);
+
+  if (data.status !== "ok") {
+    statusEl.innerText = "❌ Token expired or invalid";
     return;
   }
 
-  try {
-    const res = await fetch(API + "/verify-token", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ token })
-    });
-
-    const data = await res.json();
-    console.log("Verify:", data);
-
-    if (data.status === "expired") {
-      statusEl.innerText = "⏰ Token expired";
-      return;
-    }
-
-    if (data.status !== "ok") {
-      statusEl.innerText = "❌ Invalid token";
-      return;
-    }
-
-    // Load video
-    player.src = data.url + "?autoplay=1&mute=1";
-    statusEl.innerText = "▶️ Watching...";
-    startTimer();
-
-  } catch (err) {
-    statusEl.innerText = "⚠️ Server error";
-    console.error(err);
-  }
+  player.src = data.url + "?autoplay=1&mute=1";
+  statusEl.innerText = "▶️ Watching...";
+  startTimer();
 }
 
 // ================= TIMER =================
 function startTimer() {
-  timerEl.innerText = "⏳ " + countdown + " seconds remaining";
+  timerEl.innerText = "⏳ " + countdown + " sec";
 
-  timerInterval = setInterval(() => {
+  const interval = setInterval(() => {
     countdown--;
-    timerEl.innerText = "⏳ " + countdown + " seconds remaining";
+    timerEl.innerText = "⏳ " + countdown + " sec";
 
     if (countdown <= 0) {
-      clearInterval(timerInterval);
+      clearInterval(interval);
       completeWatch();
     }
   }, 1000);
@@ -83,31 +61,25 @@ function startTimer() {
 
 // ================= COMPLETE WATCH =================
 async function completeWatch() {
-  statusEl.innerText = "✅ Completed! Rewarding...";
+  statusEl.innerText = "🎉 Rewarding...";
 
-  try {
-    const res = await fetch(API + "/complete-watch", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ token })
-    });
+  const res = await fetch(API + "/complete-watch", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ token })
+  });
 
-    const data = await res.json();
-    console.log("Complete:", data);
+  const data = await res.json();
+  console.log(data);
 
-    if (data.status === "rewarded") {
-      statusEl.innerText = "🎉 Reward added!";
-      timerEl.innerText = "";
-    } else {
-      statusEl.innerText = "⚠️ Could not reward";
-    }
-
-  } catch (err) {
-    statusEl.innerText = "⚠️ Server error";
+  if (data.status === "rewarded") {
+    statusEl.innerText = "✅ Reward added!";
+    timerEl.innerText = "";
+  } else {
+    statusEl.innerText = "⚠️ Could not reward";
   }
 }
 
-// ================= START =================
 verifyToken();
 </script>
 
