@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>View4View Admin Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body { font-family: Arial; margin:0; background:#0f172a; color:white; }
+.container { padding:20px; }
+.card {
+  background:#1e293b;
+  padding:20px;
+  margin:10px 0;
+  border-radius:10px;
+}
+button {
+  padding:10px 15px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  background:#3b82f6;
+  color:white;
+}
+input {
+  padding:10px;
+  width:100%;
+  margin:5px 0;
+  border-radius:6px;
+  border:none;
+}
+.hidden { display:none; }
+.table { width:100%; border-collapse: collapse; }
+.table td, .table th { padding:8px; border-bottom:1px solid #334155; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- LOGIN -->
+<div id="loginBox" class="card">
+<h2>🔐 Admin Login</h2>
+<input type="password" id="apiKey" placeholder="Enter Admin API Key">
+<button onclick="login()">Login</button>
+<p id="loginMsg"></p>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="hidden">
+
+<h1>📊 Admin Dashboard</h1>
+
+<div class="card">
+<button onclick="loadStats()">📊 Load Stats</button>
+<button onclick="loadFraud()">🚨 Fraud Alerts</button>
+<button onclick="loadLeaderboard()">🏆 Leaderboard</button>
+<button onclick="loadRevenue()">💰 Revenue</button>
+<button onclick="exportUsers()">🧾 Export Users</button>
+</div>
+
+<div id="content"></div>
+
+<div class="card">
+<h3>🔨 Ban / Unban User</h3>
+<input id="banUid" placeholder="User ID">
+<button onclick="banUser()">Ban</button>
+<button onclick="unbanUser()">Unban</button>
+</div>
+
+</div>
+
+</div>
+
+<script>
+const API = "https://view4server.onrender.com"; // 🔁 change if needed
+let ADMIN_KEY = "";
+
+// ================= LOGIN =================
+function login() {
+  const key = document.getElementById("apiKey").value;
+  if (!key) return;
+
+  ADMIN_KEY = key;
+
+  fetch(API + "/admin/stats", {
+    headers: { "X-API-KEY": ADMIN_KEY }
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("Invalid key");
+    return res.json();
+  })
+  .then(() => {
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("dashboard").classList.remove("hidden");
+  })
+  .catch(() => {
+    document.getElementById("loginMsg").innerText = "❌ Invalid API Key";
+  });
+}
+
+// ================= STATS =================
+function loadStats() {
+  fetch(API + "/admin/stats", { headers: {"X-API-KEY": ADMIN_KEY} })
+  .then(res => res.json())
+  .then(data => {
+    document.getElementById("content").innerHTML = `
+      <div class="card">
+        <h3>📊 Stats</h3>
+        Users: ${data.users}<br>
+        Orders: ${data.orders}<br>
+        Active Orders: ${data.active_orders}
+      </div>`;
+  });
+}
+
+// ================= FRAUD =================
+function loadFraud() {
+  fetch(API + "/admin/fraud", { headers: {"X-API-KEY": ADMIN_KEY} })
+  .then(res => res.json())
+  .then(data => {
+    let html = "<div class='card'><h3>🚨 Fraud Alerts</h3>";
+    for (let uid in data) {
+      html += `<p>${uid} → Score: ${data[uid].score}</p>`;
+    }
+    html += "</div>";
+    document.getElementById("content").innerHTML = html;
+  });
+}
+
+// ================= LEADERBOARD =================
+function loadLeaderboard() {
+  fetch(API + "/admin/leaderboard")
+  .then(res => res.json())
+  .then(data => {
+    let html = "<div class='card'><h3>🏆 Top Users</h3>";
+    data.forEach(u => {
+      html += `<p>${u[0]} → Referrals: ${u[1].referrals}</p>`;
+    });
+    html += "</div>";
+    document.getElementById("content").innerHTML = html;
+  });
+}
+
+// ================= REVENUE =================
+function loadRevenue() {
+  fetch(API + "/admin/revenue", { headers: {"X-API-KEY": ADMIN_KEY} })
+  .then(res => res.json())
+  .then(data => {
+    document.getElementById("content").innerHTML = `
+      <div class="card">
+        <h3>💰 Revenue Analytics</h3>
+        Users: ${data.users}<br>
+        Orders: ${data.orders}<br>
+        Total Views: ${data.total_views}<br>
+        Points Spent: ${data.points_spent}
+      </div>`;
+  });
+}
+
+// ================= EXPORT USERS =================
+function exportUsers() {
+  fetch(API + "/admin/export/users", { headers: {"X-API-KEY": ADMIN_KEY} })
+  .then(res => res.json())
+  .then(data => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "users.json";
+    a.click();
+  });
+}
+
+// ================= BAN USER =================
+function banUser() {
+  const uid = document.getElementById("banUid").value;
+  fetch(API + "/admin/ban/" + uid, {
+    method:"POST",
+    headers: {"X-API-KEY": ADMIN_KEY}
+  }).then(()=>alert("User banned"));
+}
+
+// ================= UNBAN USER =================
+function unbanUser() {
+  const uid = document.getElementById("banUid").value;
+  fetch(API + "/admin/unban/" + uid, {
+    method:"POST",
+    headers: {"X-API-KEY": ADMIN_KEY}
+  }).then(()=>alert("User unbanned"));
+}
+</script>
+
+</body>
+</html>
