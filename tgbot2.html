@@ -4,33 +4,34 @@
 <meta charset="UTF-8">
 <title>API Admin Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
 body {
   margin:0;
-  font-family: "Segoe UI", sans-serif;
-  background: linear-gradient(135deg,#0f172a,#020617);
+  font-family:Segoe UI;
+  background:#020617;
   color:white;
 }
 header {
   padding:20px;
   font-size:22px;
-  font-weight:bold;
-  background: rgba(255,255,255,0.05);
-  backdrop-filter: blur(10px);
+  background:#111827;
 }
 .container { padding:20px; }
-.cards {
-  display:grid;
-  grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
-  gap:15px;
-  margin-bottom:20px;
+button {
+  padding:8px 12px;
+  border:none;
+  border-radius:6px;
+  background:#2563eb;
+  color:white;
+  cursor:pointer;
 }
-.card {
-  background: rgba(255,255,255,0.05);
-  padding:20px;
-  border-radius:12px;
+input, textarea {
+  padding:8px;
+  border-radius:6px;
+  border:none;
+  margin:5px;
 }
+.section { margin-top:25px; }
 table {
   width:100%;
   border-collapse: collapse;
@@ -41,32 +42,11 @@ th, td {
   border-bottom:1px solid rgba(255,255,255,0.1);
   text-align:center;
 }
-button {
-  padding:6px 10px;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
-  background:#2563eb;
-  color:white;
-}
-input, textarea {
-  padding:8px;
-  border-radius:6px;
-  border:none;
-  margin:5px;
-}
-.section { margin-top:30px; }
-.theme-toggle { float:right; cursor:pointer; }
-.light { background:#f8fafc; color:#111; }
 </style>
 </head>
 
 <body>
-
-<header>
-🚀 API Admin Dashboard
-<span class="theme-toggle" onclick="toggleTheme()">🌗</span>
-</header>
+<header>🚀 API Admin Dashboard</header>
 
 <div class="container">
 
@@ -79,47 +59,27 @@ input, textarea {
 <p id="loginMsg"></p>
 </div>
 
+<!-- TOKEN INPUT -->
+<div id="tokenBox" style="display:none">
+<h2>🔑 Enter Admin Token</h2>
+<p>Copy the token shown above and paste here</p>
+<input id="manualToken" placeholder="Paste token here">
+<button onclick="saveToken()">Continue</button>
+<p id="tokenMsg"></p>
+</div>
+
+<!-- DASHBOARD -->
 <div id="dashboard" style="display:none">
 
-<!-- STATS -->
-<div class="cards">
-  <div class="card"><h3>Total Users</h3><p id="totalUsers">0</p></div>
-  <div class="card"><h3>Active Keys</h3><p id="activeKeys">0</p></div>
-  <div class="card"><h3>Total Usage</h3><p id="totalUsage">0</p></div>
-</div>
-
-<!-- USERS -->
-<div class="section">
 <h2>👥 Users</h2>
-<input id="searchBox" placeholder="Search UID">
-<button onclick="searchUsers()">Search</button>
-
 <table id="usersTable">
-<tr><th>UID</th><th>Plan</th><th>Balance</th><th>Usage</th><th>Actions</th></tr>
+<tr><th>UID</th><th>Plan</th><th>Balance</th><th>Usage</th></tr>
 </table>
-</div>
 
-<!-- PROVIDER KEYS -->
 <div class="section">
-<h2>🔑 Provider Keys</h2>
-<table id="keysTable">
-<tr><th>ID</th><th>Status</th><th>Toggle</th></tr>
-</table>
-<input id="newKey" placeholder="New API Key">
-<button onclick="addKey()">Add Key</button>
-</div>
-
-<!-- BROADCAST -->
-<div class="section">
-<h2>📢 Broadcast</h2>
-<textarea id="broadcastMsg" rows="3" style="width:100%"></textarea>
-<button onclick="broadcast()">Send to All</button>
-</div>
-
-<!-- USAGE CHART -->
-<div class="section">
-<h2>📊 Usage Chart</h2>
-<canvas id="chart"></canvas>
+<h2>📢 Broadcast Message</h2>
+<textarea id="broadcastMsg" rows="3" style="width:100%" placeholder="Enter message"></textarea>
+<button onclick="broadcast()">Send to All Users</button>
 </div>
 
 </div>
@@ -129,20 +89,13 @@ input, textarea {
 const API_BASE = "https://instaapipro.onrender.com";
 let token="";
 
-function toggleTheme(){
-  document.body.classList.toggle("light");
-}
-
 /* ================= LOGIN ================= */
 function login(){
   const username = document.getElementById("user").value.trim();
   const password = document.getElementById("pass").value.trim();
-  const msg = document.getElementById("loginMsg");
-
-  msg.innerText = "";
 
   if(!username || !password){
-    msg.innerText = "⚠️ Enter username & password";
+    loginMsg.innerText = "⚠️ Enter username & password";
     return;
   }
 
@@ -151,175 +104,97 @@ function login(){
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({username,password})
   })
-  .then(async res=>{
-    const data = await res.json();
-
-    if(res.status === 401){
-      msg.innerText = "❌ Incorrect username or password";
-      return;
+  .then(res=>res.json())
+  .then(data=>{
+    if(data.token){
+      loginMsg.innerText = "✅ Login successful!\n\nCopy this token:";
+      loginMsg.innerText += "\n\n" + data.token;
+      tokenBox.style.display="block";
+    } else {
+      loginMsg.innerText = "❌ Incorrect username or password";
     }
-
-    if(!res.ok){
-      msg.innerText = "⚠️ API error. Try again.";
-      return;
-    }
-
-    if(!data.token){
-      msg.innerText = "⚠️ Login failed";
-      return;
-    }
-
-    msg.innerText = "✅ Login successful!";
-    token=data.token;
-    loginBox.style.display="none";
-    dashboard.style.display="block";
-    loadData();
   })
-  .catch(()=>{
-    msg.innerText = "🚫 Cannot reach API server";
-  });
+  .catch(()=>loginMsg.innerText="🚫 Cannot reach API server");
 }
 
-/* ================= LOAD DATA ================= */
-function loadData(){
- fetch(`${API_BASE}/admin/users`,{headers:{"X-Admin-Token":token}})
- .then(r=>r.json())
- .then(showUsers);
+/* ================= SAVE TOKEN ================= */
+function saveToken(){
+  token = manualToken.value.trim();
 
- fetch(`${API_BASE}/admin/provider_keys`,{headers:{"X-Admin-Token":token}})
- .then(r=>r.json())
- .then(showKeys);
+  if(!token){
+    tokenMsg.innerText="⚠️ Please enter token";
+    return;
+  }
+
+  tokenMsg.innerText="✅ Token accepted";
+  tokenBox.style.display="none";
+  dashboard.style.display="block";
+  loadUsers();
 }
 
-/* ================= USERS ================= */
+/* ================= LOAD USERS ================= */
+function loadUsers(){
+ fetch(`${API_BASE}/admin/users`,{
+   headers:{"X-Admin-Token":token}
+ })
+ .then(res=>{
+   if(res.status===403){
+     alert("❌ Invalid token");
+     return;
+   }
+   return res.json();
+ })
+ .then(showUsers)
+ .catch(()=>alert("⚠️ Failed to load users"));
+}
+
+/* ================= SHOW USERS ================= */
 function showUsers(users){
  let table=document.getElementById("usersTable");
- table.innerHTML=`<tr>
- <th>UID</th><th>Plan</th><th>Balance</th><th>Usage</th><th>Actions</th></tr>`;
+ table.innerHTML="<tr><th>UID</th><th>Plan</th><th>Balance</th><th>Usage</th></tr>";
 
- let totalUsage=0;
+ if(!users || users.length===0){
+   table.innerHTML += "<tr><td colspan='4'>No users found</td></tr>";
+   return;
+ }
 
  users.forEach(u=>{
-   totalUsage+=u.usage;
    table.innerHTML+=`
    <tr>
      <td>${u.uid}</td>
      <td>${u.plan}</td>
      <td>₹${u.balance}</td>
      <td>${u.usage}</td>
-     <td>
-       <button onclick="updateBalance('${u.uid}',1)">+₹</button>
-       <button onclick="updateBalance('${u.uid}',-1)">-₹</button>
-       <button onclick="setPlan('${u.uid}','pro')">Pro</button>
-       <button onclick="setPlan('${u.uid}','basic')">Basic</button>
-       <button onclick="deleteUser('${u.uid}')">❌</button>
-       <button onclick="messageUser('${u.uid}')">📩</button>
-     </td>
    </tr>`;
  });
-
- totalUsers.innerText=users.length;
- totalUsage.innerText=totalUsage;
- drawChart(users);
 }
 
-/* ================= PROVIDER KEYS ================= */
-function showKeys(keys){
- let table=document.getElementById("keysTable");
- table.innerHTML="<tr><th>ID</th><th>Status</th><th>Toggle</th></tr>";
- let active=0;
-
- keys.forEach(k=>{
-   if(k.status==="active") active++;
-   table.innerHTML+=`
-   <tr>
-     <td>${k.id}</td>
-     <td>${k.status}</td>
-     <td><button onclick="toggleKey('${k.id}')">Toggle</button></td>
-   </tr>`;
- });
-
- activeKeys.innerText=active;
-}
-
-/* ================= ACTIONS ================= */
-function updateBalance(uid,amount){
- fetch(`${API_BASE}/admin/balance`,{
-  method:"POST",
-  headers:{"Content-Type":"application/json","X-Admin-Token":token},
-  body:JSON.stringify({uid,amount})
- }).then(loadData);
-}
-
-function setPlan(uid,plan){
- fetch(`${API_BASE}/admin/plan`,{
-  method:"POST",
-  headers:{"Content-Type":"application/json","X-Admin-Token":token},
-  body:JSON.stringify({uid,plan})
- }).then(loadData);
-}
-
-function deleteUser(uid){
- if(!confirm("Delete user?")) return;
- fetch(`${API_BASE}/admin/delete_user`,{
-  method:"POST",
-  headers:{"Content-Type":"application/json","X-Admin-Token":token},
-  body:JSON.stringify({uid})
- }).then(loadData);
-}
-
-function toggleKey(id){
- fetch(`${API_BASE}/admin/toggle_key`,{
-  method:"POST",
-  headers:{"Content-Type":"application/json","X-Admin-Token":token},
-  body:JSON.stringify({id})
- }).then(loadData);
-}
-
-function addKey(){
- fetch(`${API_BASE}/admin/add_key`,{
-  method:"POST",
-  headers:{"Content-Type":"application/json","X-Admin-Token":token},
-  body:JSON.stringify({key:newKey.value})
- }).then(loadData);
-}
-
+/* ================= BROADCAST ================= */
 function broadcast(){
+  const message = broadcastMsg.value.trim();
+
+  if(!message){
+    alert("⚠️ Enter message");
+    return;
+  }
+
  fetch(`${API_BASE}/admin/broadcast`,{
   method:"POST",
-  headers:{"Content-Type":"application/json","X-Admin-Token":token},
-  body:JSON.stringify({message:broadcastMsg.value})
- });
+  headers:{
+    "Content-Type":"application/json",
+    "X-Admin-Token":token
+  },
+  body:JSON.stringify({message})
+ })
+ .then(res=>{
+   if(res.status===403){
+     alert("❌ Invalid token");
+     return;
+   }
+   alert("✅ Broadcast sent");
+ })
+ .catch(()=>alert("❌ Broadcast failed"));
 }
-
-function messageUser(uid){
- let msg=prompt("Enter message:");
- if(!msg) return;
- fetch(`${API_BASE}/admin/message_user`,{
-  method:"POST",
-  headers:{"Content-Type":"application/json","X-Admin-Token":token},
-  body:JSON.stringify({uid,message:msg})
- });
-}
-
-function searchUsers(){
- fetch(`${API_BASE}/admin/search_users?q=${searchBox.value}`,{headers:{"X-Admin-Token":token}})
- .then(r=>r.json())
- .then(showUsers);
-}
-
-/* ================= CHART ================= */
-function drawChart(users){
- new Chart(document.getElementById("chart"),{
-  type:"bar",
-  data:{
-    labels:users.map(u=>u.uid),
-    datasets:[{label:"Usage",data:users.map(u=>u.usage)}]
-  }
- });
-}
-
-setInterval(loadData,10000);
 </script>
 
 </body>
