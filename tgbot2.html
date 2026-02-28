@@ -59,15 +59,6 @@ th, td {
 <p id="loginMsg"></p>
 </div>
 
-<!-- TOKEN INPUT -->
-<div id="tokenBox" style="display:none">
-<h2>🔑 Enter Admin Token</h2>
-<p>Copy the token shown above and paste here</p>
-<input id="manualToken" placeholder="Paste token here">
-<button onclick="saveToken()">Continue</button>
-<p id="tokenMsg"></p>
-</div>
-
 <!-- DASHBOARD -->
 <div id="dashboard" style="display:none">
 
@@ -87,15 +78,18 @@ th, td {
 
 <script>
 const API_BASE = "https://instaapipro.onrender.com";
-let token="";
+let token = "";
 
 /* ================= LOGIN ================= */
 function login(){
   const username = document.getElementById("user").value.trim();
   const password = document.getElementById("pass").value.trim();
+  const msg = document.getElementById("loginMsg");
+
+  msg.innerText = "";
 
   if(!username || !password){
-    loginMsg.innerText = "⚠️ Enter username & password";
+    msg.innerText = "⚠️ Enter username & password";
     return;
   }
 
@@ -104,32 +98,31 @@ function login(){
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({username,password})
   })
-  .then(res=>res.json())
-  .then(data=>{
-    if(data.token){
-      loginMsg.innerText = "✅ Login successful!\n\nCopy this token:";
-      loginMsg.innerText += "\n\n" + data.token;
-      tokenBox.style.display="block";
-    } else {
-      loginMsg.innerText = "❌ Incorrect username or password";
+  .then(async res=>{
+    const data = await res.json();
+
+    if(res.status === 401){
+      msg.innerText = "❌ Incorrect username or password";
+      return;
     }
+
+    if(!data.token){
+      msg.innerText = "⚠️ Login failed";
+      return;
+    }
+
+    // ✅ SAVE TOKEN AUTOMATICALLY
+    token = data.token;
+
+    msg.innerText = "✅ Login successful!";
+    loginBox.style.display="none";
+    dashboard.style.display="block";
+
+    loadUsers();
   })
-  .catch(()=>loginMsg.innerText="🚫 Cannot reach API server");
-}
-
-/* ================= SAVE TOKEN ================= */
-function saveToken(){
-  token = manualToken.value.trim();
-
-  if(!token){
-    tokenMsg.innerText="⚠️ Please enter token";
-    return;
-  }
-
-  tokenMsg.innerText="✅ Token accepted";
-  tokenBox.style.display="none";
-  dashboard.style.display="block";
-  loadUsers();
+  .catch(()=>{
+    msg.innerText = "🚫 Cannot reach API server";
+  });
 }
 
 /* ================= LOAD USERS ================= */
@@ -139,7 +132,7 @@ function loadUsers(){
  })
  .then(res=>{
    if(res.status===403){
-     alert("❌ Invalid token");
+     alert("❌ Unauthorized — token issue");
      return;
    }
    return res.json();
@@ -188,7 +181,7 @@ function broadcast(){
  })
  .then(res=>{
    if(res.status===403){
-     alert("❌ Invalid token");
+     alert("❌ Unauthorized");
      return;
    }
    alert("✅ Broadcast sent");
