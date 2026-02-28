@@ -2,193 +2,109 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>API Admin Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<title>Admin Dashboard</title>
 <style>
-body {
-  margin:0;
-  font-family:Segoe UI;
-  background:#020617;
-  color:white;
-}
-header {
-  padding:20px;
-  font-size:22px;
-  background:#111827;
-}
-.container { padding:20px; }
-button {
-  padding:8px 12px;
-  border:none;
-  border-radius:6px;
-  background:#2563eb;
-  color:white;
-  cursor:pointer;
-}
-input, textarea {
-  padding:8px;
-  border-radius:6px;
-  border:none;
-  margin:5px;
-}
-.section { margin-top:25px; }
-table {
-  width:100%;
-  border-collapse: collapse;
-  margin-top:10px;
-}
-th, td {
-  padding:10px;
-  border-bottom:1px solid rgba(255,255,255,0.1);
-  text-align:center;
-}
+body{font-family:Segoe UI;background:#020617;color:white;margin:0}
+header{background:#111827;padding:20px;font-size:22px}
+.container{padding:20px}
+button{padding:6px 10px;border:none;border-radius:6px;background:#2563eb;color:white;cursor:pointer}
+input,textarea{padding:8px;border-radius:6px;border:none;margin:5px}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.1);text-align:center}
+.section{margin-top:30px}
 </style>
 </head>
-
 <body>
-<header>🚀 API Admin Dashboard</header>
 
+<header>🚀 Admin Dashboard</header>
 <div class="container">
 
-<!-- LOGIN -->
 <div id="loginBox">
-<h2>Admin Login</h2>
+<h2>Login</h2>
 <input id="user" placeholder="Username"><br>
 <input id="pass" type="password" placeholder="Password"><br>
 <button onclick="login()">Login</button>
-<p id="loginMsg"></p>
+<p id="msg"></p>
 </div>
 
-<!-- DASHBOARD -->
 <div id="dashboard" style="display:none">
 
 <h2>👥 Users</h2>
-<table id="usersTable">
-<tr><th>UID</th><th>Plan</th><th>Balance</th><th>Usage</th></tr>
-</table>
+<table id="usersTable"></table>
 
 <div class="section">
-<h2>📢 Broadcast Message</h2>
-<textarea id="broadcastMsg" rows="3" style="width:100%" placeholder="Enter message"></textarea>
-<button onclick="broadcast()">Send to All Users</button>
+<h2>📢 Broadcast</h2>
+<textarea id="broadcastMsg" rows="3" style="width:100%"></textarea>
+<button onclick="broadcast()">Send</button>
+</div>
+
+<div class="section">
+<h2>🔑 Provider Keys</h2>
+<table id="keysTable"></table>
+<input id="newKey" placeholder="New API key">
+<button onclick="addKey()">Add</button>
 </div>
 
 </div>
 </div>
 
 <script>
-const API_BASE = "https://instaapipro.onrender.com";
-let token = "";
+const API="https://instaapipro.onrender.com";
 
-/* ================= LOGIN ================= */
 function login(){
-  const username = document.getElementById("user").value.trim();
-  const password = document.getElementById("pass").value.trim();
-  const msg = document.getElementById("loginMsg");
-
-  msg.innerText = "";
-
-  if(!username || !password){
-    msg.innerText = "⚠️ Enter username & password";
-    return;
-  }
-
-  fetch(`${API_BASE}/admin/login`,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({username,password})
-  })
-  .then(async res=>{
-    const data = await res.json();
-
-    if(res.status === 401){
-      msg.innerText = "❌ Incorrect username or password";
-      return;
-    }
-
-    if(!data.token){
-      msg.innerText = "⚠️ Login failed";
-      return;
-    }
-
-    // ✅ SAVE TOKEN AUTOMATICALLY
-    token = data.token;
-
-    msg.innerText = "✅ Login successful!";
-    loginBox.style.display="none";
-    dashboard.style.display="block";
-
-    loadUsers();
-  })
-  .catch(()=>{
-    msg.innerText = "🚫 Cannot reach API server";
-  });
-}
-
-/* ================= LOAD USERS ================= */
-function loadUsers(){
- fetch(`${API_BASE}/admin/users`,{
-   headers:{"X-Admin-Token":token}
+ fetch(`${API}/admin/login`,{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  credentials:"include",
+  body:JSON.stringify({username:user.value,password:pass.value})
  })
- .then(res=>{
-   if(res.status===403){
-     alert("❌ Unauthorized — token issue");
-     return;
-   }
-   return res.json();
- })
- .then(showUsers)
- .catch(()=>alert("⚠️ Failed to load users"));
-}
-
-/* ================= SHOW USERS ================= */
-function showUsers(users){
- let table=document.getElementById("usersTable");
- table.innerHTML="<tr><th>UID</th><th>Plan</th><th>Balance</th><th>Usage</th></tr>";
-
- if(!users || users.length===0){
-   table.innerHTML += "<tr><td colspan='4'>No users found</td></tr>";
-   return;
- }
-
- users.forEach(u=>{
-   table.innerHTML+=`
-   <tr>
-     <td>${u.uid}</td>
-     <td>${u.plan}</td>
-     <td>₹${u.balance}</td>
-     <td>${u.usage}</td>
-   </tr>`;
+ .then(r=>{if(!r.ok){msg.innerText="❌ Login failed";return;}
+  msg.innerText="✅ Logged in";
+  loginBox.style.display="none";dashboard.style.display="block";
+  loadUsers();loadKeys();
  });
 }
 
-/* ================= BROADCAST ================= */
-function broadcast(){
-  const message = broadcastMsg.value.trim();
-
-  if(!message){
-    alert("⚠️ Enter message");
-    return;
-  }
-
- fetch(`${API_BASE}/admin/broadcast`,{
-  method:"POST",
-  headers:{
-    "Content-Type":"application/json",
-    "X-Admin-Token":token
-  },
-  body:JSON.stringify({message})
- })
- .then(res=>{
-   if(res.status===403){
-     alert("❌ Unauthorized");
-     return;
-   }
-   alert("✅ Broadcast sent");
- })
- .catch(()=>alert("❌ Broadcast failed"));
+function loadUsers(){
+ fetch(`${API}/admin/users`,{credentials:"include"})
+ .then(r=>r.json()).then(users=>{
+  let t=usersTable;
+  t.innerHTML=`<tr><th>UID</th><th>Plan</th><th>Balance</th><th>Usage</th><th>Actions</th></tr>`;
+  users.forEach(u=>{
+   t.innerHTML+=`<tr>
+   <td>${u.uid}</td><td>${u.plan}</td><td>₹${u.balance}</td><td>${u.usage}</td>
+   <td>
+   <button onclick="bal('${u.uid}',1)">+₹</button>
+   <button onclick="bal('${u.uid}',-1)">-₹</button>
+   <button onclick="plan('${u.uid}','pro')">Pro</button>
+   <button onclick="plan('${u.uid}','basic')">Basic</button>
+   <button onclick="msgUser('${u.uid}')">📩</button>
+   <button onclick="delUser('${u.uid}')">❌</button>
+   </td></tr>`;
+  });
+ });
 }
-</script>
 
+function bal(uid,a){fetch(`${API}/admin/update_balance`,{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({uid,amount:a})}).then(loadUsers)}
+function plan(uid,p){fetch(`${API}/admin/update_plan`,{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({uid,plan:p})}).then(loadUsers)}
+function delUser(uid){if(confirm("Delete?"))fetch(`${API}/admin/delete_user`,{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({uid})}).then(loadUsers)}
+function msgUser(uid){let m=prompt("Message");if(m)fetch(`${API}/admin/message_user`,{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({uid,message:m})})}
+function broadcast(){fetch(`${API}/admin/broadcast`,{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({message:broadcastMsg.value})})}
+
+function loadKeys(){
+ fetch(`${API}/admin/provider_keys`,{credentials:"include"})
+ .then(r=>r.json()).then(keys=>{
+  keysTable.innerHTML="<tr><th>ID</th><th>Status</th><th>Last Failed</th><th>Action</th></tr>";
+  keys.forEach(k=>{
+   keysTable.innerHTML+=`<tr>
+   <td>${k.id}</td><td>${k.status}</td><td>${k.last_failed}</td>
+   <td><button onclick="toggleKey('${k.id}')">Toggle</button></td></tr>`;
+  });
+ });
+}
+
+function toggleKey(id){fetch(`${API}/admin/toggle_key`,{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({id})}).then(loadKeys)}
+function addKey(){fetch(`${API}/admin/add_key`,{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({key:newKey.value})}).then(()=>{newKey.value="";loadKeys();})}
+</script>
 </body>
 </html>
