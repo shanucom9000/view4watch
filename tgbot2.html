@@ -21,9 +21,7 @@ header {
   backdrop-filter: blur(10px);
 }
 
-.container {
-  padding:20px;
-}
+.container { padding:20px; }
 
 .cards {
   display:grid;
@@ -38,9 +36,6 @@ header {
   border-radius:12px;
   backdrop-filter: blur(8px);
 }
-
-.card h3 { margin:0; font-size:14px; color:#9ca3af }
-.card p { font-size:22px; margin:5px 0 0 }
 
 table {
   width:100%;
@@ -63,8 +58,6 @@ button {
   color:white;
 }
 
-button:hover { opacity:0.8 }
-
 input, textarea {
   padding:8px;
   border-radius:6px;
@@ -72,19 +65,11 @@ input, textarea {
   margin:5px;
 }
 
-.section {
-  margin-top:30px;
-}
+.section { margin-top:30px; }
 
-.theme-toggle {
-  float:right;
-  cursor:pointer;
-}
+.theme-toggle { float:right; cursor:pointer; }
 
-.light {
-  background:#f8fafc;
-  color:#111;
-}
+.light { background:#f8fafc; color:#111; }
 </style>
 </head>
 
@@ -110,7 +95,7 @@ input, textarea {
 <!-- STATS -->
 <div class="cards">
   <div class="card"><h3>Total Users</h3><p id="totalUsers">0</p></div>
-  <div class="card"><h3>Active Provider Keys</h3><p id="activeKeys">0</p></div>
+  <div class="card"><h3>Active Keys</h3><p id="activeKeys">0</p></div>
   <div class="card"><h3>Total Usage</h3><p id="totalUsage">0</p></div>
 </div>
 
@@ -155,6 +140,7 @@ input, textarea {
 </div>
 
 <script>
+const API_BASE = "https://instaapipro.onrender.com"; // ✅ your API URL
 let token="";
 
 function toggleTheme(){
@@ -162,26 +148,31 @@ function toggleTheme(){
 }
 
 function login(){
- fetch("/admin/login",{
+ fetch(`${API_BASE}/admin/login`,{
    method:"POST",
    headers:{"Content-Type":"application/json"},
-   body:JSON.stringify({username:user.value,password:pass.value})
+   body:JSON.stringify({
+     username:user.value,
+     password:pass.value
+   })
  })
  .then(r=>r.json())
  .then(d=>{
+   if(!d.token){ alert("Login failed"); return; }
    token=d.token;
    loginBox.style.display="none";
    dashboard.style.display="block";
    loadData();
- });
+ })
+ .catch(()=>alert("Server not reachable"));
 }
 
 function loadData(){
- fetch("/admin/users",{headers:{"X-Admin-Token":token}})
+ fetch(`${API_BASE}/admin/users`,{headers:{"X-Admin-Token":token}})
  .then(r=>r.json())
  .then(showUsers);
 
- fetch("/admin/provider_keys",{headers:{"X-Admin-Token":token}})
+ fetch(`${API_BASE}/admin/provider_keys`,{headers:{"X-Admin-Token":token}})
  .then(r=>r.json())
  .then(showKeys);
 }
@@ -213,7 +204,7 @@ function showUsers(users){
  });
 
  totalUsers.innerText=users.length;
- totalUsageEl= document.getElementById("totalUsage");
+ totalUsageEl = document.getElementById("totalUsage");
  totalUsageEl.innerText=totalUsage;
 
  drawChart(users);
@@ -238,7 +229,7 @@ function showKeys(keys){
 }
 
 function updateBalance(uid,amount){
- fetch("/admin/balance",{
+ fetch(`${API_BASE}/admin/balance`,{
   method:"POST",
   headers:{
     "Content-Type":"application/json",
@@ -249,7 +240,7 @@ function updateBalance(uid,amount){
 }
 
 function setPlan(uid,plan){
- fetch("/admin/plan",{
+ fetch(`${API_BASE}/admin/plan`,{
   method:"POST",
   headers:{
     "Content-Type":"application/json",
@@ -261,7 +252,7 @@ function setPlan(uid,plan){
 
 function deleteUser(uid){
  if(!confirm("Delete user?")) return;
- fetch("/admin/delete_user",{
+ fetch(`${API_BASE}/admin/delete_user`,{
   method:"POST",
   headers:{
     "Content-Type":"application/json",
@@ -272,7 +263,7 @@ function deleteUser(uid){
 }
 
 function toggleKey(id){
- fetch("/admin/toggle_key",{
+ fetch(`${API_BASE}/admin/toggle_key`,{
   method:"POST",
   headers:{
     "Content-Type":"application/json",
@@ -283,7 +274,7 @@ function toggleKey(id){
 }
 
 function addKey(){
- fetch("/admin/add_key",{
+ fetch(`${API_BASE}/admin/add_key`,{
   method:"POST",
   headers:{
     "Content-Type":"application/json",
@@ -294,7 +285,7 @@ function addKey(){
 }
 
 function broadcast(){
- fetch("/admin/broadcast",{
+ fetch(`${API_BASE}/admin/broadcast`,{
   method:"POST",
   headers:{
     "Content-Type":"application/json",
@@ -307,7 +298,7 @@ function broadcast(){
 function messageUser(uid){
  let msg=prompt("Enter message:");
  if(!msg) return;
- fetch("/admin/message_user",{
+ fetch(`${API_BASE}/admin/message_user`,{
   method:"POST",
   headers:{
     "Content-Type":"application/json",
@@ -318,7 +309,7 @@ function messageUser(uid){
 }
 
 function searchUsers(){
- fetch(`/admin/search_users?q=${searchBox.value}`,{headers:{"X-Admin-Token":token}})
+ fetch(`${API_BASE}/admin/search_users?q=${searchBox.value}`,{headers:{"X-Admin-Token":token}})
  .then(r=>r.json())
  .then(showUsers);
 }
