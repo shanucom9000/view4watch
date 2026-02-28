@@ -12,7 +12,6 @@ body {
   background: linear-gradient(135deg,#0f172a,#020617);
   color:white;
 }
-
 header {
   padding:20px;
   font-size:22px;
@@ -20,35 +19,28 @@ header {
   background: rgba(255,255,255,0.05);
   backdrop-filter: blur(10px);
 }
-
 .container { padding:20px; }
-
 .cards {
   display:grid;
   grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
   gap:15px;
   margin-bottom:20px;
 }
-
 .card {
   background: rgba(255,255,255,0.05);
   padding:20px;
   border-radius:12px;
-  backdrop-filter: blur(8px);
 }
-
 table {
   width:100%;
   border-collapse: collapse;
   margin-top:10px;
 }
-
 th, td {
   padding:10px;
   border-bottom:1px solid rgba(255,255,255,0.1);
   text-align:center;
 }
-
 button {
   padding:6px 10px;
   border:none;
@@ -57,18 +49,14 @@ button {
   background:#2563eb;
   color:white;
 }
-
 input, textarea {
   padding:8px;
   border-radius:6px;
   border:none;
   margin:5px;
 }
-
 .section { margin-top:30px; }
-
 .theme-toggle { float:right; cursor:pointer; }
-
 .light { background:#f8fafc; color:#111; }
 </style>
 </head>
@@ -85,9 +73,10 @@ input, textarea {
 <!-- LOGIN -->
 <div id="loginBox">
 <h2>Admin Login</h2>
-<input id="user" placeholder="Username">
-<input id="pass" type="password" placeholder="Password">
+<input id="user" placeholder="Username"><br>
+<input id="pass" type="password" placeholder="Password"><br>
 <button onclick="login()">Login</button>
+<p id="loginMsg"></p>
 </div>
 
 <div id="dashboard" style="display:none">
@@ -106,9 +95,7 @@ input, textarea {
 <button onclick="searchUsers()">Search</button>
 
 <table id="usersTable">
-<tr>
-<th>UID</th><th>Plan</th><th>Balance</th><th>Usage</th><th>Actions</th>
-</tr>
+<tr><th>UID</th><th>Plan</th><th>Balance</th><th>Usage</th><th>Actions</th></tr>
 </table>
 </div>
 
@@ -118,7 +105,6 @@ input, textarea {
 <table id="keysTable">
 <tr><th>ID</th><th>Status</th><th>Toggle</th></tr>
 </table>
-
 <input id="newKey" placeholder="New API Key">
 <button onclick="addKey()">Add Key</button>
 </div>
@@ -140,33 +126,61 @@ input, textarea {
 </div>
 
 <script>
-const API_BASE = "https://instaapipro.onrender.com"; // ✅ your API URL
+const API_BASE = "https://instaapipro.onrender.com";
 let token="";
 
 function toggleTheme(){
   document.body.classList.toggle("light");
 }
 
+/* ================= LOGIN ================= */
 function login(){
- fetch(`${API_BASE}/admin/login`,{
-   method:"POST",
-   headers:{"Content-Type":"application/json"},
-   body:JSON.stringify({
-     username:user.value,
-     password:pass.value
-   })
- })
- .then(r=>r.json())
- .then(d=>{
-   if(!d.token){ alert("Login failed"); return; }
-   token=d.token;
-   loginBox.style.display="none";
-   dashboard.style.display="block";
-   loadData();
- })
- .catch(()=>alert("Server not reachable"));
+  const username = document.getElementById("user").value.trim();
+  const password = document.getElementById("pass").value.trim();
+  const msg = document.getElementById("loginMsg");
+
+  msg.innerText = "";
+
+  if(!username || !password){
+    msg.innerText = "⚠️ Enter username & password";
+    return;
+  }
+
+  fetch(`${API_BASE}/admin/login`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({username,password})
+  })
+  .then(async res=>{
+    const data = await res.json();
+
+    if(res.status === 401){
+      msg.innerText = "❌ Incorrect username or password";
+      return;
+    }
+
+    if(!res.ok){
+      msg.innerText = "⚠️ API error. Try again.";
+      return;
+    }
+
+    if(!data.token){
+      msg.innerText = "⚠️ Login failed";
+      return;
+    }
+
+    msg.innerText = "✅ Login successful!";
+    token=data.token;
+    loginBox.style.display="none";
+    dashboard.style.display="block";
+    loadData();
+  })
+  .catch(()=>{
+    msg.innerText = "🚫 Cannot reach API server";
+  });
 }
 
+/* ================= LOAD DATA ================= */
 function loadData(){
  fetch(`${API_BASE}/admin/users`,{headers:{"X-Admin-Token":token}})
  .then(r=>r.json())
@@ -177,6 +191,7 @@ function loadData(){
  .then(showKeys);
 }
 
+/* ================= USERS ================= */
 function showUsers(users){
  let table=document.getElementById("usersTable");
  table.innerHTML=`<tr>
@@ -204,12 +219,11 @@ function showUsers(users){
  });
 
  totalUsers.innerText=users.length;
- totalUsageEl = document.getElementById("totalUsage");
- totalUsageEl.innerText=totalUsage;
-
+ totalUsage.innerText=totalUsage;
  drawChart(users);
 }
 
+/* ================= PROVIDER KEYS ================= */
 function showKeys(keys){
  let table=document.getElementById("keysTable");
  table.innerHTML="<tr><th>ID</th><th>Status</th><th>Toggle</th></tr>";
@@ -228,13 +242,11 @@ function showKeys(keys){
  activeKeys.innerText=active;
 }
 
+/* ================= ACTIONS ================= */
 function updateBalance(uid,amount){
  fetch(`${API_BASE}/admin/balance`,{
   method:"POST",
-  headers:{
-    "Content-Type":"application/json",
-    "X-Admin-Token":token
-  },
+  headers:{"Content-Type":"application/json","X-Admin-Token":token},
   body:JSON.stringify({uid,amount})
  }).then(loadData);
 }
@@ -242,10 +254,7 @@ function updateBalance(uid,amount){
 function setPlan(uid,plan){
  fetch(`${API_BASE}/admin/plan`,{
   method:"POST",
-  headers:{
-    "Content-Type":"application/json",
-    "X-Admin-Token":token
-  },
+  headers:{"Content-Type":"application/json","X-Admin-Token":token},
   body:JSON.stringify({uid,plan})
  }).then(loadData);
 }
@@ -254,10 +263,7 @@ function deleteUser(uid){
  if(!confirm("Delete user?")) return;
  fetch(`${API_BASE}/admin/delete_user`,{
   method:"POST",
-  headers:{
-    "Content-Type":"application/json",
-    "X-Admin-Token":token
-  },
+  headers:{"Content-Type":"application/json","X-Admin-Token":token},
   body:JSON.stringify({uid})
  }).then(loadData);
 }
@@ -265,10 +271,7 @@ function deleteUser(uid){
 function toggleKey(id){
  fetch(`${API_BASE}/admin/toggle_key`,{
   method:"POST",
-  headers:{
-    "Content-Type":"application/json",
-    "X-Admin-Token":token
-  },
+  headers:{"Content-Type":"application/json","X-Admin-Token":token},
   body:JSON.stringify({id})
  }).then(loadData);
 }
@@ -276,10 +279,7 @@ function toggleKey(id){
 function addKey(){
  fetch(`${API_BASE}/admin/add_key`,{
   method:"POST",
-  headers:{
-    "Content-Type":"application/json",
-    "X-Admin-Token":token
-  },
+  headers:{"Content-Type":"application/json","X-Admin-Token":token},
   body:JSON.stringify({key:newKey.value})
  }).then(loadData);
 }
@@ -287,10 +287,7 @@ function addKey(){
 function broadcast(){
  fetch(`${API_BASE}/admin/broadcast`,{
   method:"POST",
-  headers:{
-    "Content-Type":"application/json",
-    "X-Admin-Token":token
-  },
+  headers:{"Content-Type":"application/json","X-Admin-Token":token},
   body:JSON.stringify({message:broadcastMsg.value})
  });
 }
@@ -300,10 +297,7 @@ function messageUser(uid){
  if(!msg) return;
  fetch(`${API_BASE}/admin/message_user`,{
   method:"POST",
-  headers:{
-    "Content-Type":"application/json",
-    "X-Admin-Token":token
-  },
+  headers:{"Content-Type":"application/json","X-Admin-Token":token},
   body:JSON.stringify({uid,message:msg})
  });
 }
@@ -314,6 +308,7 @@ function searchUsers(){
  .then(showUsers);
 }
 
+/* ================= CHART ================= */
 function drawChart(users){
  new Chart(document.getElementById("chart"),{
   type:"bar",
